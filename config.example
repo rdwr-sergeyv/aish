@@ -1,0 +1,27 @@
+# ~/.config/aish/config   (every key can also be set as AISH_<KEY> in the environment)
+
+# anthropic (default) | openai | claude
+provider = anthropic
+
+# Default per provider: anthropic claude-opus-5-5, openai gpt-5-mini, claude: the CLI's default.
+# model = claude-haiku-5-5
+
+# low | medium | high | xhigh | max   (anthropic and claude)
+effort = low
+
+# anthropic: a gateway; openai: any compatible endpoint (Ollama: http://localhost:11434/v1)
+# base_url =
+
+# Prefer ANTHROPIC_API_KEY / OPENAI_API_KEY in the environment. If set here, chmod 600 this file.
+# api_key =
+
+# claude provider: path to the Claude Code CLI
+# claude_bin = claude
+
+# Send the previous command line and its exit status (enables "? " alone = fix it)
+send_last = true
+
+# anthropic: on a policy refusal, let the API retry on another model
+fallbacks = true
+
+timeout = 60s
