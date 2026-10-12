@@ -5,7 +5,7 @@
 #   Alt+E           explain the command on the line, leaving it as it is
 # Nothing runs until you press Enter on the command. Ctrl+J is a plain accept-line.
 # Settings: AISH_KEY (default \C-g), AISH_EXPLAIN_KEY (default \ee),
-# AISH_ENTER=0 leaves Enter alone.
+# AISH_ENTER=0 leaves Enter alone, AISH_KEEP_REQUEST=0 drops the "# request" comment.
 
 : "${__aish_bin:=aish}"
 __aish_status=0
@@ -17,6 +17,8 @@ __aish_fill() {
   [[ $line == *[![:space:]]* ]] || return 0
   line=${line#"${line%%[![:space:]]*}"}
   line=${line#\?}
+  line=${line#"${line%%[![:space:]]*}"}
+  line=${line%"${line##*[![:space:]]}"}
 
   local last
   last=$(fc -ln -1 2>/dev/null)
@@ -28,8 +30,19 @@ __aish_fill() {
         --last-cmd "$last" --last-status "$__aish_status" -- "$line" </dev/null)
   printf '\r\e[K' >&2
 
+  # Keep the request as a trailing comment; the cursor stays at the end of the command.
+  # Without interactive_comments, "#" would become an argument.
+  local point=${#out}
+  if [[ ${AISH_KEEP_REQUEST:-1} != 0 && -n $line ]] && shopt -q interactive_comments; then
+    if [[ $out == *$'\n'* ]]; then
+      out="# $line"$'\n'"$out"   # a comment after a heredoc terminator would break it
+      point=${#out}
+    else
+      out+="  # $line"
+    fi
+  fi
   READLINE_LINE=$out
-  READLINE_POINT=${#out}
+  READLINE_POINT=$point
 }
 
 # Prints above the prompt; readline then redraws the prompt with the line intact.

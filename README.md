@@ -5,8 +5,14 @@ until you press Enter.
 
 ```
 $ ? find files over 100MB changed this week      ← press Enter (or type it bare and press Ctrl+G)
-$ find . -type f -size +100M -mtime -7           ← the line is replaced; Enter runs it, Ctrl+C drops it
+$ find . -type f -size +100M -mtime -7  # find files over 100MB changed this week
+                                                 ↑ the line is replaced; Enter runs it, Ctrl+C drops it
 ```
+
+The request stays on the line as a comment, so history keeps it with the command. The
+cursor sits at the end of the command, before the comment. A multi-line answer gets
+the comment on a line of its own above it. `AISH_KEEP_REQUEST=0` turns this off. It is
+also skipped when `interactive_comments` is off, since `#` would then be an argument.
 
 | Keys | Effect |
 |---|---|

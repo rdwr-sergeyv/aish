@@ -19,6 +19,7 @@ while [[ $1 == --* && $1 != -- ]]; do
   case $1 in --last-cmd) last=$2;; --last-status) st=$2;; esac; shift 2
 done
 shift
+if [[ $* == multi ]]; then printf 'echo one\necho two\n'; exit; fi
 echo "echo REQ[$*] LAST[$last] ST[$st]"
 """
 
@@ -69,15 +70,34 @@ ok = True
 t = run(["echo plain-enter\r"])
 ok &= check("plain Enter runs the line", "\nplain-enter" in t, t)
 
-t = run(["? list ports\r"])
-ok &= check("'? request' Enter fills the line", "echo REQ[ list ports]" in t, t)
+t = run(["? list ports \r"])
+ok &= check("'? request' Enter fills the line, request kept as a comment",
+            "echo REQ[list ports] LAST[] ST[0]  # list ports" in t, t)
 ok &= check("...and does not run it", "\nREQ[" not in t, t)
 
 t = run(["? list ports\r", "\r"])
-ok &= check("second Enter runs the filled command", "\nREQ[ list ports]" in t, t)
+ok &= check("second Enter runs the filled command", "\nREQ[list ports] LAST[] ST[0]\r" in t, t)
+
+t = run(["? list ports\r", "X\r"])
+ok &= check("cursor is at the end of the command, before the comment", "\nREQ[list ports] LAST[] ST[0]X\r" in t, t)
+
+t = run(["? list ports\r", "\r", "fc -ln -2 | head -1\r"])
+ok &= check("history keeps the request",
+            "echo REQ[list ports] LAST[] ST[0]  # list ports\r\n" in t.split("head -1\r\n")[-1], t)
+
+t = run(["? multi\r", "\r"])
+ok &= check("multi-line answer gets the comment on its own first line",
+            "# multi" in t and "\none\r\ntwo" in t, t)
+
+t = run(["shopt -u interactive_comments\r", "? list ports\r", "\r"])
+ok &= check("no comment without interactive_comments", "ST[0]  #" not in t and "\nREQ[list ports]" in t, t)
+
+t = run(["export AISH_KEEP_REQUEST=0\r", "? list ports\r", "\r"])
+ok &= check("AISH_KEEP_REQUEST=0 drops the comment", "ST[0]  #" not in t and "\nREQ[list ports]" in t, t)
 
 t = run(["false\r", "?\r", "\r"])
-ok &= check("'?' alone passes the previous command and status", "\nREQ[] LAST[false] ST[1]" in t, t)
+ok &= check("'?' alone passes the previous command and status, no comment",
+            "\nREQ[] LAST[false] ST[1]\r" in t and "ST[1]  #" not in t, t)
 
 t = run(["list ports\x07", "\r"])
 ok &= check("Ctrl+G fills, Enter runs", "\nREQ[list ports]" in t, t)
