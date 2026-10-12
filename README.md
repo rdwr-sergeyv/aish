@@ -13,7 +13,17 @@ $ find . -type f -size +100M -mtime -7           ← the line is replaced; Enter
 | `? <request>` Enter | replace the line with a command |
 | `<request>` Ctrl+G | the same, without the `?` |
 | `?` Enter | fix the previous command (uses its text and exit status) |
+| Alt+E | explain the command on the line, above the prompt; the line stays as it is |
 | Ctrl+J | plain accept-line, bypassing the hook |
+
+Rebind with `AISH_KEY` and `AISH_EXPLAIN_KEY` (readline syntax, such as `'\C-g'` or
+`'\ee'`), set before the `eval` line. In vi mode, an Esc-prefixed explain key is bound
+only in the emacs keymap, so that plain Esc stays instant.
+
+An explanation is a one-line summary plus a line for each notable part. It ends
+with `Warning:` lines (yellow) when the command can destroy data, needs root or
+does something other than it appears to, and with a `Fix:` line (green) when the
+command is wrong.
 
 When there's no command to give, the answer is a `# ...` comment line, so Enter is
 harmless. Errors arrive the same way: `# aish: ...`.

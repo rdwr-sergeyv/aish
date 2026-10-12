@@ -21,12 +21,14 @@ const usage = `aish - plain language in, one shell command out
 
 Usage:
   aish ask [--last-cmd CMD --last-status N] -- <request...>
+  aish explain -- <command...>
   aish init bash        print the bash hook: eval "$(aish init bash)"
   aish config           print the effective configuration
   aish <request...>     shorthand for "ask"
 
 In bash, type a request and press Ctrl+G, or start the line with "? " and
 press Enter. The line is replaced with a command; Enter runs it.
+Alt+E explains the command on the line without changing it.
 `
 
 func main() {
@@ -42,6 +44,8 @@ func main() {
 		os.Exit(runConfig())
 	case "ask":
 		os.Exit(runAsk(args[1:]))
+	case "explain":
+		os.Exit(runExplain(args[1:]))
 	default:
 		os.Exit(runAsk(args))
 	}
@@ -91,24 +95,56 @@ func runAsk(args []string) int {
 		request = "Fix the previous command."
 	}
 
-	p, err := newProvider(cfg)
+	raw, err := complete(cfg, systemPrompt(ctx), userPrompt(ctx, "Request", request))
 	if err != nil {
 		return fail(err)
+	}
+	fmt.Println(cleanAnswer(raw))
+	return 0
+}
+
+func runExplain(args []string) int {
+	fs := flag.NewFlagSet("explain", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	command := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	if command == "" {
+		return fail(errors.New("nothing to explain"))
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		return fail(err)
+	}
+	ctx := gatherContext(cfg, "", 0)
+	raw, err := complete(cfg, explainPrompt(ctx), userPrompt(ctx, "Command", command))
+	if err != nil {
+		return fail(err)
+	}
+	fmt.Println(cleanExplanation(raw))
+	return 0
+}
+
+// complete makes the one model call, under the configured timeout.
+func complete(cfg *Config, system, user string) (string, error) {
+	p, err := newProvider(cfg)
+	if err != nil {
+		return "", err
 	}
 	c, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
 	start := time.Now()
-	raw, err := p.Complete(c, systemPrompt(ctx), userPrompt(ctx, request))
+	raw, err := p.Complete(c, system, user)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			err = fmt.Errorf("no answer within %s (timeout in config)", cfg.Timeout)
 		}
-		return fail(err)
+		return "", err
 	}
-	cmd := cleanAnswer(raw)
-	if cmd == "" {
-		return fail(errors.New("the model returned an empty answer"))
+	if strings.TrimSpace(raw) == "" {
+		return "", errors.New("the model returned an empty answer")
 	}
 	if os.Getenv("AISH_DEBUG") != "" {
 		model := cfg.Model
@@ -117,8 +153,7 @@ func runAsk(args []string) int {
 		}
 		fmt.Fprintf(os.Stderr, "aish: %s/%s in %s\n", cfg.Provider, model, time.Since(start).Round(time.Millisecond))
 	}
-	fmt.Println(cmd)
-	return 0
+	return raw, nil
 }
 
 // fail prints the error as a comment line so that, once it lands on the

@@ -24,6 +24,14 @@ func TestCleanAnswer(t *testing.T) {
 	}
 }
 
+func TestCleanExplanation(t *testing.T) {
+	in := "```\nLists files.\n  -l  long format   \n```\n"
+	want := "Lists files.\n  -l  long format"
+	if got := cleanExplanation(in); got != want {
+		t.Errorf("cleanExplanation = %q, want %q", got, want)
+	}
+}
+
 func TestConfigPrecedence(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config")

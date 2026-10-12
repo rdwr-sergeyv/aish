@@ -71,7 +71,18 @@ Reply with the command only: no explanation, no markdown, no code fences, no lea
 - Use the previous command and its exit status only when the request refers to them ("fix that", "again but...").`, ctx.Shell, ctx.OS)
 }
 
-func userPrompt(ctx shellContext, request string) string {
+func explainPrompt(ctx shellContext) string {
+	return fmt.Sprintf(`You explain a command for %s on %s to the person about to run it. Your reply is printed in their terminal, above their prompt.
+
+Write plain text: no markdown, no code fences, no headings, no bold.
+- First line: what the command does, in one sentence.
+- Then, unless the command is trivial, one short line per notable part (a flag, a pipe stage, an expansion), as "  <part>  <what it does>".
+- If running it can delete or overwrite data, change system, service or network state, needs root, or does something other than it appears to, add a line starting with "Warning: ".
+- If it is wrong or won't work here, say why and give the corrected command on a line starting with "Fix: ".
+Stay under 12 lines.`, ctx.Shell, ctx.OS)
+}
+
+func userPrompt(ctx shellContext, label, text string) string {
 	var b strings.Builder
 	b.WriteString("<context>\n")
 	fmt.Fprintf(&b, "cwd: %s\n", ctx.Cwd)
@@ -83,9 +94,19 @@ func userPrompt(ctx shellContext, request string) string {
 	if ctx.LastCmd != "" {
 		fmt.Fprintf(&b, "previous command: %s\nits exit status: %d\n", ctx.LastCmd, ctx.LastStatus)
 	}
-	b.WriteString("</context>\n\nRequest: ")
-	b.WriteString(request)
+	fmt.Fprintf(&b, "</context>\n\n%s: %s", label, text)
 	return b.String()
+}
+
+// cleanExplanation drops code-fence lines, which models add despite instructions.
+func cleanExplanation(s string) string {
+	var keep []string
+	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "```") {
+			keep = append(keep, strings.TrimRight(line, " \t\r"))
+		}
+	}
+	return strings.TrimSpace(strings.Join(keep, "\n"))
 }
 
 // cleanAnswer strips what models add despite instructions: code fences

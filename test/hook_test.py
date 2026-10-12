@@ -11,6 +11,9 @@ HOOK = os.path.join(ROOT, "shell", "aish.bash")
 
 STUB = r"""#!/bin/bash
 # echo back what the hook passed, as a runnable command
+if [[ $1 == explain ]]; then
+  shift 2; printf 'EXPLAIN[%s]\nWarning: stub\n' "$*"; exit
+fi
 shift  # "ask"
 while [[ $1 == --* && $1 != -- ]]; do
   case $1 in --last-cmd) last=$2;; --last-status) st=$2;; esac; shift 2
@@ -84,5 +87,14 @@ ok &= check("Ctrl+G on an empty line does nothing", "REQ[" not in t and "\nafter
 
 t = run(["echo 'a?b'\r"])
 ok &= check("'?' inside a command is left alone", "\na?b" in t, t)
+
+t = run(["echo kept-line", "\x1be", "\r"])
+ok &= check("Alt+E prints the explanation", "EXPLAIN[echo kept-line]\r\nWarning: stub" in t, t)
+i = t.find("EXPLAIN[")
+ok &= check("...then redraws the prompt with the line", "PROMPT$ echo kept-line" in t[i:], t)
+ok &= check("...and Enter runs the unchanged line", "\nkept-line" in t[i:], t)
+
+t = run(["\x1be", "echo after-empty\r"])
+ok &= check("Alt+E on an empty line does nothing", "EXPLAIN[" not in t and "\nafter-empty" in t, t)
 
 sys.exit(0 if ok else 1)
